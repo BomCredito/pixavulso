@@ -1,0 +1,667 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PIX — Informe chave + valor + QR (15 min)</title>
+  <style>
+    :root{
+      --bg:#f6f7fb; --card:#fff; --accent:#1f6feb; --text:#222; --muted:#666;
+      --shadow:0 8px 24px rgba(20,20,50,0.06); --danger:#b00020; --ok:#2b8a3e;
+    }
+    html,body{height:100%;}
+    body{
+      margin:0; font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,Arial;
+      background:linear-gradient(180deg,#eef2ff 0%, var(--bg) 100%);
+      display:flex; align-items:center; justify-content:center; padding:20px; color:var(--text);
+    }
+    .card{background:var(--card); border-radius:12px; box-shadow:var(--shadow); width:100%; max-width:680px; padding:20px; text-align:center;}
+    h1{margin:0 0 6px;font-size:20px;}
+    p.lead{margin:0 0 12px;color:var(--muted);font-size:14px;}
+    .input-row{display:flex;gap:8px;justify-content:center;align-items:center;margin-bottom:8px;flex-wrap:wrap;}
+    input[type="text"], select{padding:10px 12px;border-radius:8px;border:1px solid rgba(0,0,0,0.08);font-size:16px;}
+    input[type="text"].valor{width:220px;text-align:right;}
+    input[type="text"].key{width:320px;text-align:left;}
+    select{height:44px;}
+    .controls{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;}
+    button{background:var(--accent);color:white;border:0;padding:10px 12px;border-radius:8px;cursor:pointer;font-weight:600;box-shadow:0 6px 18px rgba(31,111,235,0.12);}
+    button.alt{background:transparent;color:var(--accent);border:1px solid rgba(31,111,235,0.12);box-shadow:none;}
+    button[disabled]{opacity:0.45;cursor:not-allowed;box-shadow:none}
+    .small{font-size:13px;color:var(--muted);margin-top:6px;}
+    .error{color:var(--danger);font-weight:700;margin-top:6px;}
+    .success{color:var(--ok);font-weight:700;margin-top:6px;}
+    .qr-wrap{display:flex;align-items:center;justify-content:center;padding:12px;background:linear-gradient(180deg,#fff,#fbfdff);border-radius:10px;border:1px solid rgba(0,0,0,0.04);margin-bottom:12px;}
+    #qrcode{width:220px;height:220px;}
+    .payload{word-break:break-all;font-family:"Courier New",monospace;background:#f4f6fb;padding:12px;border-radius:8px;font-size:13px;color:#0b2545;margin-bottom:12px;}
+    .info-row{display:flex;justify-content:space-between;gap:8px;margin-top:12px;font-size:13px;color:var(--muted);flex-wrap:wrap;}
+    .timer{font-weight:700;font-size:16px;color:var(--muted);}
+    .expired-overlay{
+      position:absolute; inset:0; display:flex;align-items:center;justify-content:center;
+      background:rgba(255,255,255,0.85); border-radius:10px; font-weight:700; color:var(--danger);
+    }
+    .qr-container{position:relative; display:inline-block;}
+    footer{margin-top:14px;font-size:12px;color:var(--muted);}
+    @media (max-width:560px){
+      input[type="text"].key{width:100%;}
+      input[type="text"].valor{width:160px;}
+      .card{padding:16px;}
+    }
+
+    :root{
+  --bg: #f6f7fb;
+  --card: #ffffff;
+  --accent: #1f6feb;
+  --accent-600: #165fcc;
+  --text: #222;
+  --muted: #667085;
+  --muted-2: #98a0b3;
+  --shadow: 0 10px 30px rgba(20,20,50,0.08);
+  --danger: #b00020;
+  --ok: #2b8a3e;
+  --radius: 12px;
+  --glass: linear-gradient(180deg,#fff,#fbfdff);
+  --maxw: 720px;
+  --gap: 14px;
+  font-synthesis: none;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Helvetica Neue";
+  background: linear-gradient(180deg,#eef2ff 0%, var(--bg) 100%);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:28px;
+  color:var(--text);
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+
+/* CARD */
+.card{
+  background:var(--card);
+  border-radius:calc(var(--radius) + 4px);
+  box-shadow:var(--shadow);
+  width:100%;
+  max-width:var(--maxw);
+  padding:20px;
+  text-align:left;
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+.card:focus-within,
+.card:hover{ transform: translateY(-3px); box-shadow: 0 18px 40px rgba(20,20,50,0.09); }
+
+header.card-head{ display:flex; align-items:flex-start; gap:12px; margin-bottom:8px; }
+h1{ margin:0; font-size:20px; line-height:1.05; }
+p.lead{ margin:6px 0 14px; color:var(--muted); font-size:14px; }
+
+/* FORM LAYOUT - usa grid para evitar sobreposição */
+.form-grid{
+  display:grid;
+  grid-template-columns: 220px 1fr 220px;
+  column-gap:var(--gap);
+  row-gap:12px;
+  align-items:end;
+  width:100%;
+}
+
+/* quando for menor que 760px use duas colunas */
+@media (max-width:760px){
+  .form-grid{ grid-template-columns: 1fr 160px; }
+  .form-grid .full{ grid-column: 1 / -1; }
+}
+
+/* mobile empilha */
+@media (max-width:480px){
+  .form-grid{ grid-template-columns: 1fr; }
+  .form-grid > *{ width:100%; }
+}
+
+/* Labels pequenos (inline sobre o input) */
+.form-field{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+
+/* inputs */
+input[type="text"], select{
+  padding:12px 14px;
+  border-radius:10px;
+  border:1px solid rgba(6,12,34,0.06);
+  background: #fff;
+  font-size:15px;
+  outline: none;
+  transition: box-shadow .12s ease, border-color .12s ease, transform .08s ease;
+  color:var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+}
+
+/* classes específicas do seu html */
+input.key{ width:100%; min-width:0; }
+input.valor{ width:100%; text-align:right; min-width:0; }
+
+/* foco */
+input[type="text"]:focus, select:focus{
+  border-color: var(--accent-600);
+  box-shadow: 0 6px 18px rgba(31,111,235,0.10);
+  transform: translateY(-1px);
+}
+
+/* placeholder mais suave */
+input::placeholder{ color: #b9c1d3; }
+
+/* botões principais / alternativos */
+.controls-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-top:12px; }
+
+button{
+  background:var(--accent);
+  color:white;
+  border:0;
+  padding:10px 14px;
+  border-radius:10px;
+  cursor:pointer;
+  font-weight:700;
+  font-size:14px;
+  box-shadow: 0 8px 26px rgba(31,111,235,0.12);
+  transition: transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+button:hover{ transform: translateY(-3px); box-shadow: 0 18px 36px rgba(31,111,235,0.16); }
+button.alt{
+  background:transparent;
+  color:var(--accent);
+  border:1px solid rgba(31,111,235,0.12);
+  box-shadow:none;
+  font-weight:700;
+}
+button[disabled]{ opacity:0.5; cursor:not-allowed; transform:none; box-shadow:none; }
+
+/* mensagens */
+.small{ font-size:13px; color:var(--muted); margin-top:8px; }
+.error{ color:var(--danger); font-weight:700; margin-top:6px; }
+.success{ color:var(--ok); font-weight:700; margin-top:6px; }
+
+/* QR area */
+.qr-wrap{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:16px;
+  background:var(--glass);
+  border-radius:10px;
+  border:1px solid rgba(6,12,34,0.04);
+  margin:14px 0;
+}
+.qr-container{ position:relative; display:inline-block; width:240px; height:240px; }
+#qrcode{ width:100%; height:100%; display:block; }
+
+/* overlay expirado */
+.expired-overlay{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  background: rgba(255,255,255,0.86); border-radius:10px; font-weight:800; color:var(--danger); font-size:18px;
+}
+
+/* payload estilizado */
+.payload{
+  word-break:break-all;
+  font-family: "Courier New", monospace;
+  background:#f4f6fb;
+  padding:12px;
+  border-radius:10px;
+  font-size:13px;
+  color:#0b2545;
+  margin-bottom:8px;
+  border:1px solid rgba(11,37,69,0.06);
+}
+
+/* info-row: organiza em coluna/linha conforme o espaço */
+.info-row{
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:12px;
+  font-size:13px;
+  color:var(--muted);
+  flex-wrap:wrap;
+}
+.info-row > div{ min-width:140px; }
+
+/* timer */
+.timer{ font-weight:800; font-size:16px; color:var(--muted); background:transparent; padding:6px 8px; border-radius:8px; }
+
+/* footer menor */
+footer{ margin-top:14px; font-size:12px; color:var(--muted); text-align:center; }
+
+/* utilidades */
+.center{ display:flex; align-items:center; justify-content:center; gap:8px; }
+.mt-6{ margin-top:6px; }
+
+/* ajustes visuais menores para responsividade */
+@media (max-width:420px){
+  .qr-container{ width:200px; height:200px; }
+  button{ padding:10px 10px; font-size:13px; }
+  .info-row > div{ min-width:unset; flex:1 1 45%; }
+}
+
+  </style>
+</head>
+<body>
+  <div class="card" role="main" aria-labelledby="title">
+    <h1 id="title">PIX — Informe chave e valor</h1>
+    <p class="lead">Informe a chave PIX (qualquer pessoa) e o valor da cobrança para gerar o QR e o código "copia & cola". Tempo válido: <strong>15 minutos</strong>.</p>
+
+    <!-- Etapa 1: seleção de chave + entrada do valor -->
+    <div id="step-value">
+      <div class="input-row" style="align-items:stretch;">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="keyType" style="font-size:13px;color:var(--muted);text-align:left">Tipo de chave</label>
+          <select id="keyType" aria-label="Tipo de chave PIX">
+            <option value="cpf">CPF</option>
+            <option value="cnpj">CNPJ</option>
+            <option value="telefone">Telefone</option>
+            <option value="email">E-mail</option>
+            <option value="aleatoria">Aleatória</option>
+          </select>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;min-width:0;flex:1;">
+          <label for="keyInput" style="font-size:13px;color:var(--muted);text-align:left">Chave PIX</label>
+          <input id="keyInput" class="key" type="text" placeholder="Ex.: 149.761.906-84 ou (11) 99999-8888 ou usuario@exemplo.com" aria-label="Chave PIX" />
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label for="valorInput" style="font-size:13px;color:var(--muted);text-align:left">Valor</label>
+          <div style="display:flex;gap:8px">
+            <input id="valorInput" class="valor" type="text" inputmode="decimal" placeholder="Ex.: 79,90" aria-label="Valor da compra" />
+            <button id="btnConfirm" style="height:44px">Gerar PIX</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="err" class="error" style="display:none"></div>
+      <div class="small">Formatos aceitos: CPF/CNPJ (com ou sem pontuação), telefone (com ou sem +55, parênteses, espaços), e-mail, ou chave aleatória.</div>
+    </div>
+
+    <!-- Etapa 2: QR + payload (inicialmente oculto) -->
+    <div id="step-qr" style="display:none">
+      <p class="lead">PIX para a chave <strong id="cpfText">14976190684</strong> (<span id="tipoText">CPF</span>)</p>
+
+      <div class="qr-wrap">
+        <div class="qr-container">
+          <div id="qrcode"></div>
+          <!-- overlay quando expira -->
+          <div id="expiredOverlay" class="expired-overlay" style="display:none">PIX EXPIRADO</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:center;gap:12px;align-items:center;margin-bottom:8px;">
+        <div class="timer" id="timerDisplay">15:00</div>
+        <div class="small" id="statusText" style="color:var(--muted)">Válido</div>
+      </div>
+
+      <div class="payload" id="payload" title="Cole este texto no campo 'PIX — Copia e Cola' do app do seu banco"></div>
+
+      <div class="controls">
+        <button id="copyPayload">Copiar Copia & Cola</button>
+        <button id="copyKey" class="alt">Copiar Chave</button>
+        <button id="downloadQr" class="alt">Baixar QR (PNG)</button>
+        <button id="btnChange" class="alt">Alterar valor/chave</button>
+        <button id="btnRegenerate" class="alt" style="display:none">Regenerar (mesmo valor)</button>
+      </div>
+
+      <div class="info-row">
+        <div>Chave (normalizada): <strong id="key">14976190684</strong></div>
+        <div>Tipo: <strong id="tipoDisplay">CPF</strong></div>
+        <div>Valor: <strong id="valorDisplay">R$ 0,00</strong></div>
+      </div>
+
+      <p id="msg" class="small">A página gera localmente o payload e o QR — nenhum dado é enviado a servidores externos.</p>
+    </div>
+
+    <footer>Se algum app reclamar da chave, tente escanear o QR com o mesmo app que tem a chave registrada.</footer>
+  </div>
+
+  <!-- biblioteca QRCodeJS (CDN) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    // ---------- CONFIG ----------
+    const DEFAULT_KEY = '14976190684'; // só para preencher inicialmente
+    const MERCHANT_NAME = 'JOAO BATISTA';
+    const MERCHANT_CITY = 'SAO PAULO';
+    const VALID_SECONDS = 15 * 60; // 15 minutos
+
+    // ---------- elementos ----------
+    const stepValue = document.getElementById('step-value');
+    const stepQr = document.getElementById('step-qr');
+    const valorInput = document.getElementById('valorInput');
+    const btnConfirm = document.getElementById('btnConfirm');
+    const errEl = document.getElementById('err');
+    const keyInput = document.getElementById('keyInput');
+    const keyType = document.getElementById('keyType');
+
+    const payloadEl = document.getElementById('payload');
+    const qrContainer = document.getElementById('qrcode');
+    const copyPayloadBtn = document.getElementById('copyPayload');
+    const copyKeyBtn = document.getElementById('copyKey');
+    const downloadQrBtn = document.getElementById('downloadQr');
+    const btnChange = document.getElementById('btnChange');
+    const btnRegenerate = document.getElementById('btnRegenerate');
+    const valorDisplay = document.getElementById('valorDisplay');
+    const keyEl = document.getElementById('key');
+    const tipoDisplay = document.getElementById('tipoDisplay');
+    const cpfText = document.getElementById('cpfText');
+    const tipoText = document.getElementById('tipoText');
+    const timerDisplay = document.getElementById('timerDisplay');
+    const statusText = document.getElementById('statusText');
+    const expiredOverlay = document.getElementById('expiredOverlay');
+
+    // inicializa valores
+    keyInput.value = DEFAULT_KEY;
+    keyType.value = 'cpf';
+    keyEl.textContent = DEFAULT_KEY;
+    tipoDisplay.textContent = 'CPF';
+    cpfText.textContent = DEFAULT_KEY;
+    tipoText.textContent = 'CPF';
+
+    // ---------- TLV + CRC ----------
+    function tlv(tag, value){
+      const v = String(value);
+      const len = String(v.length).padStart(2,'0');
+      const t = String(tag).padStart(2,'0');
+      return t + len + v;
+    }
+    function crc16CCITT(str){
+      const data = new TextEncoder().encode(str);
+      let crc = 0xFFFF;
+      for (let b of data) {
+        crc ^= (b << 8);
+        for (let i = 0; i < 8; i++) {
+          if (crc & 0x8000) crc = ((crc << 1) & 0xFFFF) ^ 0x1021;
+          else crc = (crc << 1) & 0xFFFF;
+        }
+      }
+      return crc & 0xFFFF;
+    }
+    function gerarPayloadPix(chave, amount, merchantName, merchantCity, txid){
+      let payload = '';
+      payload += tlv(0, '01');
+      let mai = '';
+      mai += tlv(0, 'BR.GOV.BCB.PIX');
+      mai += tlv(1, chave);
+      payload += tlv(26, mai);
+      payload += tlv(52, '0000');
+      payload += tlv(53, '986');
+      payload += tlv(54, String(amount));
+      payload += tlv(58, 'BR');
+      payload += tlv(59, String(merchantName).slice(0,25));
+      payload += tlv(60, String(merchantCity).slice(0,15));
+      let add = '';
+      add += tlv(5, String(txid).slice(0,25));
+      payload += tlv(62, add);
+      const payloadForCrc = payload + '63' + '04';
+      const crc = crc16CCITT(payloadForCrc);
+      const crcHex = crc.toString(16).toUpperCase().padStart(4,'0');
+      return payloadForCrc + crcHex;
+    }
+
+    // ---------- util valor ----------
+    function parseAmount(input){
+      if(!input) return null;
+      const cleaned = String(input).replace(/[^\d.,]/g, '').replace(',', '.');
+      if(cleaned === '') return null;
+      const n = Number(cleaned);
+      if(Number.isFinite(n) && n > 0) return n.toFixed(2);
+      return null;
+    }
+    function formatBR(amountStr){
+      const n = Number(amountStr);
+      return n.toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    }
+
+    // ---------- normalização da chave ----------
+    function normalizeCPF(val){
+      const digits = String(val).replace(/\D/g,'');
+      // sem validação de dígito verificador; só retorna dígitos
+      return digits;
+    }
+    function normalizeCNPJ(val){
+      return String(val).replace(/\D/g,'');
+    }
+    function normalizeEmail(val){
+      return String(val).trim().toLowerCase();
+    }
+    function normalizeTelefone(val){
+      // remove tudo que não for dígito ou + no início
+      let s = String(val).trim();
+      // se começar com +, mantenha + e retire não dígitos depois
+      if(s.startsWith('+')){
+        s = '+' + s.slice(1).replace(/\D/g,'');
+        return s;
+      }
+      // remove não dígitos
+      let digits = s.replace(/\D/g,'');
+      // se já tem country code (começa com 55) — acrescenta +
+      if(digits.length === 13 && digits.startsWith('55')) {
+        return '+' + digits;
+      }
+      // se tem 11 (DDD+9 dígitos) ou 10 (DDD+8) — assume Brasil e adiciona +55
+      if(digits.length === 11 || digits.length === 10) {
+        return '+55' + digits;
+      }
+      // se tem 12 e começa com 55 (ex.: 5511999...), já coloca +
+      if(digits.length === 12 && digits.startsWith('55')) {
+        return '+' + digits;
+      }
+      // se for curto (ex.: 99998888) tenta não modificar (mas é arriscado)
+      return digits;
+    }
+    function normalizeAleatoria(val){
+      return String(val).trim();
+    }
+
+    function normalizeKeyByType(type, raw){
+      if(!raw) return null;
+      switch(type){
+        case 'cpf': return normalizeCPF(raw);
+        case 'cnpj': return normalizeCNPJ(raw);
+        case 'telefone': return normalizeTelefone(raw);
+        case 'email': return normalizeEmail(raw);
+        case 'aleatoria': return normalizeAleatoria(raw);
+        default: return String(raw).trim();
+      }
+    }
+
+    function validateKey(type, normalized){
+      if(!normalized) return {ok:false, msg:'Chave vazia.'};
+      if(type === 'cpf'){
+        if(!/^\d{11}$/.test(normalized)) return {ok:false, msg:'CPF inválido: informe 11 dígitos (com ou sem pontuação).'};
+      } else if(type === 'cnpj'){
+        if(!/^\d{14}$/.test(normalized)) return {ok:false, msg:'CNPJ inválido: informe 14 dígitos (com ou sem pontuação).'};
+      } else if(type === 'telefone'){
+        // aceita +55119... ou 119... ou 11... etc, faça checagens básicas
+        if(!/^(\+?\d{10,13})$/.test(normalized)) return {ok:false, msg:'Telefone inválido: informe DDD + número (ex: (11)99999-8888) ou com +55.'};
+      } else if(type === 'email'){
+        // validação simples
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) return {ok:false, msg:'E-mail inválido.'};
+      } else {
+        // aleatória: mínimo 1 caractere
+        if(normalized.length < 1) return {ok:false, msg:'Chave aleatória inválida.'};
+      }
+      return {ok:true};
+    }
+
+    // ---------- timer ----------
+    let expireAt = null; // timestamp ms
+    let timerInterval = null;
+    let currentPayload = '';
+    let qrInstance = null;
+
+    function startTimer(seconds){
+      clearTimer();
+      const now = Date.now();
+      expireAt = now + seconds * 1000;
+      updateTimerDisplay(); // imediata
+      timerInterval = setInterval(updateTimerDisplay, 1000);
+    }
+
+    function clearTimer(){
+      if(timerInterval) clearInterval(timerInterval);
+      timerInterval = null;
+      expireAt = null;
+    }
+
+    function updateTimerDisplay(){
+      if(!expireAt){ timerDisplay.textContent = '—:—'; return; }
+      const rem = Math.max(0, Math.floor((expireAt - Date.now()) / 1000));
+      const mm = String(Math.floor(rem / 60)).padStart(2,'0');
+      const ss = String(rem % 60).padStart(2,'0');
+      timerDisplay.textContent = `${mm}:${ss}`;
+      if(rem <= 0){
+        // expirou
+        handleExpired();
+      } else {
+        statusText.textContent = 'Válido';
+        statusText.style.color = 'var(--muted)';
+      }
+    }
+
+    function handleExpired(){
+      clearTimer();
+      statusText.textContent = 'Expirado';
+      statusText.style.color = 'var(--danger)';
+      expiredOverlay.style.display = 'flex';
+      // desativa botões que usam o payload
+      copyPayloadBtn.disabled = true;
+      downloadQrBtn.disabled = true;
+      // permite regenerar
+      btnRegenerate.style.display = 'inline-block';
+    }
+
+    function markActive(){
+      expiredOverlay.style.display = 'none';
+      copyPayloadBtn.disabled = false;
+      downloadQrBtn.disabled = false;
+      btnRegenerate.style.display = 'none';
+      statusText.textContent = 'Válido';
+      statusText.style.color = 'var(--muted)';
+    }
+
+    // ---------- gerar e mostrar ----------
+    function generateAndShow(amountFormatted, normalizedKey, keyTypeLabel){
+      // cria txid único (curto)
+      const txid = 'TX' + Date.now().toString().slice(-8);
+      currentPayload = gerarPayloadPix(normalizedKey, amountFormatted, MERCHANT_NAME, MERCHANT_CITY, txid);
+      payloadEl.textContent = currentPayload;
+      valorDisplay.textContent = 'R$ ' + formatBR(amountFormatted);
+
+      // QR
+      qrContainer.innerHTML = '';
+      qrInstance = new QRCode(qrContainer, { text: currentPayload, width:220, height:220, correctLevel: QRCode.CorrectLevel.H });
+
+      // mostra e inicia timer
+      stepValue.style.display = 'none';
+      stepQr.style.display = 'block';
+      markActive();
+      startTimer(VALID_SECONDS);
+
+      // atualiza infos
+      keyEl.textContent = normalizedKey;
+      tipoDisplay.textContent = keyTypeLabel;
+      cpfText.textContent = normalizedKey;
+      tipoText.textContent = keyTypeLabel;
+    }
+
+    // ---------- eventos ----------
+    btnConfirm.addEventListener('click', () => {
+      errEl.style.display = 'none';
+      const parsed = parseAmount(valorInput.value);
+      if(parsed === null){
+        errEl.textContent = 'Valor inválido. Informe um número maior que 0, ex: 79,90';
+        errEl.style.display = 'block';
+        return;
+      }
+
+      const rawKey = keyInput.value || '';
+      const type = keyType.value;
+      const normalized = normalizeKeyByType(type, rawKey);
+
+      const validated = validateKey(type, normalized);
+      if(!validated.ok){
+        errEl.textContent = validated.msg;
+        errEl.style.display = 'block';
+        return;
+      }
+
+      // gera com chave normalizada
+      const typeLabel = {
+        cpf:'CPF', cnpj:'CNPJ', telefone:'Telefone', email:'E-mail', aleatoria:'Aleatória'
+      }[type] || type;
+
+      generateAndShow(parsed, normalized, typeLabel);
+    });
+
+    valorInput.addEventListener('keyup', (e)=> { if(e.key === 'Enter') btnConfirm.click(); });
+
+    // cópia para clipboard (visando compatibilidade)
+    async function copyText(text){
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch (e) {
+        const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); document.body.removeChild(ta); return true; } catch(e2){ document.body.removeChild(ta); return false; }
+      }
+    }
+
+    copyPayloadBtn.addEventListener('click', async () => {
+      if(!expireAt || (expireAt - Date.now()) <= 0){ alert('Payload expirado — regenere um novo QR.'); return; }
+      const ok = await copyText(currentPayload);
+      copyPayloadBtn.textContent = ok ? 'Copiado!' : 'Erro ao copiar';
+      setTimeout(()=> copyPayloadBtn.textContent = 'Copiar Copia & Cola', 2000);
+    });
+
+    copyKeyBtn.addEventListener('click', async () => {
+      const text = keyEl.textContent || keyInput.value || '';
+      const ok = await copyText(text);
+      copyKeyBtn.textContent = ok ? 'Chave copiada!' : 'Erro';
+      setTimeout(()=> copyKeyBtn.textContent = 'Copiar Chave', 2000);
+    });
+
+    downloadQrBtn.addEventListener('click', () => {
+      if(!expireAt || (expireAt - Date.now()) <= 0){ alert('QR expirado — regenere um novo.'); return; }
+      const img = qrContainer.querySelector('img');
+      if(img && img.src){ const a=document.createElement('a'); a.href=img.src; a.download='pix_qr.png'; a.click(); return; }
+      const canvas = qrContainer.querySelector('canvas');
+      if(canvas){ const dataUrl = canvas.toDataURL('image/png'); const a=document.createElement('a'); a.href=dataUrl; a.download='pix_qr.png'; a.click(); return; }
+      alert('Não foi possível gerar o arquivo de imagem do QR.');
+    });
+
+    btnChange.addEventListener('click', () => {
+      // volta para etapa de valor/chave (mantém input com último valor)
+      stepQr.style.display = 'none';
+      stepValue.style.display = 'block';
+      valorInput.focus();
+      clearTimer();
+    });
+
+    btnRegenerate.addEventListener('click', () => {
+      // regenera com o mesmo valor exibido e mesma chave mostrada
+      const displayed = valorDisplay.textContent.replace(/[^\d,.-]/g, '').replace(',', '.');
+      const parsed = parseAmount(displayed);
+      const normalizedKey = keyEl.textContent;
+      const typeLabel = tipoDisplay.textContent || '';
+      if(parsed && normalizedKey){
+        generateAndShow(parsed, normalizedKey, typeLabel);
+      }
+    });
+
+    // acessibilidade
+    [btnConfirm, copyPayloadBtn, copyKeyBtn, downloadQrBtn, btnChange, btnRegenerate].forEach(btn=>{
+      btn.addEventListener('keyup', (e)=> { if(e.key === 'Enter') btn.click(); });
+    });
+
+    // foco inicial
+    keyInput.focus();
+  </script>
+</body>
+</html>
